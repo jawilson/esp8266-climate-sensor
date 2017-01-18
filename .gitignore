@@ -1,0 +1,7 @@
+.pioenvs
+.piolibdeps
+.clang_complete
+.gcc-flags.json
+
+# Ignore config so I don't accidentally commit private info
+src/config.h

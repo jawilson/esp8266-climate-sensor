@@ -1,0 +1,12 @@
+#ifndef __esp8266_dht22_mqtt_config_h
+#define __esp8266_dht22_mqtt_config_h
+
+#define WIFI_SSID "MyWiFiNetwork"
+#define WIFI_PASSWORD "MyWiFiPassword"
+
+#define MQTT_SERVER_HOST "192.168.1.101"
+#define MQTT_SERVER_PORT 1883
+#define MQTT_USER "esp8266"
+#define MQTT_PASSWORD "password1234"
+
+#endif //__esp8266_dht22_mqtt_config_h
