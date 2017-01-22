@@ -299,7 +299,7 @@ void setup()
   {
     collect(false);
     publish();
-    rfMode = WAKE_RFCAL;
+    rfMode = WAKE_RF_DEFAULT;
   }
 
   unsigned long sleepLength = sample_period - (micros() - startTime);
