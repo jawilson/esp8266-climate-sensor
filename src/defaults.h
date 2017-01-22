@@ -1,8 +1,12 @@
 #ifndef __esp8266_dht22_mqtt_defaults_h
 #define __esp8266_dht22_mqtt_defaults_h
 
-#ifndef SAMPLE_PERIOD
-#define SAMPLE_PERIOD 5 * 60;
+#ifndef REPORT_PERIOD
+#define REPORT_PERIOD (5 * 60)
+#endif
+
+#ifndef SAMPLES_TO_AVG
+#define SAMPLES_TO_AVG 10
 #endif
 
 #ifndef WIFI_CONNECT_TIMEOUT_MS

@@ -42,16 +42,22 @@ typedef struct {
   char device_name[sizeof(MQTT_USER) + 1 + 6 + 1];
   size_t mqtt_namespace_length;
   char mqtt_namespace[128];
-} RtcDataStruct;
-RtcDataStruct rtcData;
+  size_t sample_data_count;
+} RtcManagementStruct;
+RtcManagementStruct rtc_management_data;
+
+typedef struct {
+  float temperature;
+  float humidity;
+} RtcSampleDataStruct;
+volatile RtcSampleDataStruct sample_data;
 
 char reading[6];
 
-const int sample_period = SAMPLE_PERIOD * 1000000;
+const int sample_period = (REPORT_PERIOD / SAMPLES_TO_AVG) * 1000000;
 
 bool setup_wifi()
 {
-  Serial.println();
   Serial.print("Connecting to ");
   Serial.println(wifi_ssid);
 
@@ -83,14 +89,14 @@ bool setup_wifi()
 bool setup_mqtt()
 {
   const unsigned long id = micros() & 0xff;
-  mqtt_client_id = new char[rtcData.device_name_length + 3 + 1];
-  sprintf(mqtt_client_id, "%s-%02X", rtcData.device_name, id);
+  mqtt_client_id = new char[rtc_management_data.device_name_length + 3 + 1];
+  sprintf(mqtt_client_id, "%s-%02X", rtc_management_data.device_name, id);
 
-  mqtt_temp_topic = new char[rtcData.mqtt_namespace_length + 1 + sizeof(MQTT_TEMP_TOPIC) + 1];
-  sprintf(mqtt_temp_topic, "%s/%s", rtcData.mqtt_namespace, MQTT_TEMP_TOPIC);
+  mqtt_temp_topic = new char[rtc_management_data.mqtt_namespace_length + 1 + sizeof(MQTT_TEMP_TOPIC) + 1];
+  sprintf(mqtt_temp_topic, "%s/%s", rtc_management_data.mqtt_namespace, MQTT_TEMP_TOPIC);
 
-  mqtt_humidity_topic = new char[rtcData.mqtt_namespace_length + 1 + sizeof(MQTT_HUMIDITY_TOPIC) + 1];
-  sprintf(mqtt_humidity_topic, "%s/%s", rtcData.mqtt_namespace, MQTT_HUMIDITY_TOPIC);
+  mqtt_humidity_topic = new char[rtc_management_data.mqtt_namespace_length + 1 + sizeof(MQTT_HUMIDITY_TOPIC) + 1];
+  sprintf(mqtt_humidity_topic, "%s/%s", rtc_management_data.mqtt_namespace, MQTT_HUMIDITY_TOPIC);
 
   Serial.print("MQTT server: ");
   Serial.print(mqtt_server_host);
@@ -131,32 +137,72 @@ bool setup_mqtt()
   return mqttClient.connected();
 }
 
-void publish_sensor_info()
+uint32_t get_sample_offset(size_t index)
+{
+  return (sizeof(RtcManagementStruct) + sizeof(RtcSampleDataStruct) * index) / 4;
+}
+
+void store_sample_data()
+{
+  uint32_t offset = get_sample_offset(rtc_management_data.sample_data_count);
+  ESP.rtcUserMemoryWrite(offset, (uint32_t *) &sample_data, sizeof(sample_data));
+
+  rtc_management_data.sample_data_count++;
+  ESP.rtcUserMemoryWrite(0, (uint32_t *) &rtc_management_data, sizeof(rtc_management_data));
+}
+
+void average_sample_data()
+{
+  float temperature = sample_data.temperature;
+  float humidity = sample_data.humidity;
+
+  size_t samples = rtc_management_data.sample_data_count + 1;
+
+  for (size_t i = 0; i < rtc_management_data.sample_data_count; i++)
+  {
+    uint32_t offset = get_sample_offset(i);
+    ESP.rtcUserMemoryRead(offset, (uint32_t *) &sample_data, sizeof(sample_data));
+
+    humidity += sample_data.humidity;
+    temperature += sample_data.temperature;
+  }
+
+  sample_data.temperature = temperature / samples;
+  sample_data.humidity = humidity / samples;
+}
+
+void collect(bool store)
 {
   // Reading temperature or humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-  float h = dht.readHumidity();
+  float humidity = dht.readHumidity();
 
   // Read temperature as Celsius (the default)
-  float t = dht.readTemperature();
+  float temperature = dht.readTemperature();
 
 
-  if (isnan(h) || isnan(t))
+  if (isnan(humidity) || isnan(temperature))
   {
     Serial.println("Failed to read temperature and humidity from sensor");
     return;
   }
 
-  dtostrf(h, 4, 2, reading);
-  Serial.printf("Publishing: %s %s\n", mqtt_humidity_topic, reading);
-  mqttClient.publish(mqtt_humidity_topic, reading, true);
+  Serial.printf("Read #%d humidity=", rtc_management_data.sample_data_count + 1);
+  Serial.print(humidity);
+  Serial.print("% temperature=");
+  Serial.print(temperature);
+  Serial.println("˚C");
 
-  dtostrf(t, 4, 2, reading);
-  Serial.printf("Publishing: %s %s\n", mqtt_temp_topic, reading);
-  mqttClient.publish(mqtt_temp_topic, reading, true);
+  sample_data.humidity = humidity;
+  sample_data.temperature = temperature;
+
+  if (store)
+  {
+    store_sample_data();
+  }
 }
 
-void connect_and_publish()
+void publish()
 {
   if (!setup_wifi())
   {
@@ -170,7 +216,25 @@ void connect_and_publish()
     return;
   }
 
-  publish_sensor_info();
+  average_sample_data();
+
+  if (rtc_management_data.sample_data_count != 0)
+  {
+    rtc_management_data.sample_data_count = 0;
+
+    if (!ESP.rtcUserMemoryWrite(0, (uint32_t *) &rtc_management_data, sizeof(rtc_management_data)))
+    {
+      Serial.println("Failed to update sample data counter");
+    }
+  }
+
+  dtostrf(sample_data.humidity, 4, 2, reading);
+  Serial.printf("Publishing: %s %s\n", mqtt_humidity_topic, reading);
+  mqttClient.publish(mqtt_humidity_topic, reading, true);
+
+  dtostrf(sample_data.temperature, 4, 2, reading);
+  Serial.printf("Publishing: %s %s\n", mqtt_temp_topic, reading);
+  mqttClient.publish(mqtt_temp_topic, reading, true);
 
   mqttClient.disconnect();
 }
@@ -180,14 +244,21 @@ void init_rtc_mem()
   uint8_t mac[6];
   WiFi.macAddress(mac);
 
-  rtcData.device_name_length = sizeof(MQTT_USER) + 6;
-  sprintf(rtcData.device_name, "%s-%02X%02X%02X",
+  rtc_management_data.device_name_length = sizeof(MQTT_USER) + 6;
+  sprintf(rtc_management_data.device_name, "%s-%02X%02X%02X",
           MQTT_USER, mac[3], mac[4], mac[5]);
 
-  rtcData.mqtt_namespace_length = rtcData.device_name_length;
-  strcpy(rtcData.mqtt_namespace, rtcData.device_name);
+  rtc_management_data.mqtt_namespace_length = rtc_management_data.device_name_length;
+  strcpy(rtc_management_data.mqtt_namespace, rtc_management_data.device_name);
 
-  ESP.rtcUserMemoryWrite(0, (uint32_t *) &rtcData, sizeof(rtcData));
+  rtc_management_data.sample_data_count = 0;
+
+  if(!ESP.rtcUserMemoryWrite(0, (uint32_t *) &rtc_management_data, sizeof(rtc_management_data)))
+  {
+    Serial.println("Failed to write RTC memory management");
+  }
+
+  ESP.deepSleep(10, WAKE_RF_DISABLED);
 }
 
 void setup()
@@ -197,7 +268,7 @@ void setup()
   dht.begin();
 
   Serial.begin(9600);
-  Serial.println("\n\nWake up");
+  Serial.println("\n");
 
   // Connect D0 to RST to wake up
   pinMode(D0, WAKEUP_PULLUP);
@@ -207,7 +278,10 @@ void setup()
   if (rsti->reason == REASON_DEEP_SLEEP_AWAKE)
   {
     Serial.println("Woke up from deep sleep");
-    ESP.rtcUserMemoryRead(0, (uint32_t *) &rtcData, sizeof(rtcData));
+    if (!ESP.rtcUserMemoryRead(0, (uint32_t *) &rtc_management_data, sizeof(rtc_management_data)))
+    {
+      Serial.println("Failed to read RTC memory management");
+    }
   }
   else
   {
@@ -215,11 +289,22 @@ void setup()
     init_rtc_mem();
   }
 
-  connect_and_publish();
+  RFMode rfMode;
+  if (rtc_management_data.sample_data_count < SAMPLES_TO_AVG - 1)
+  {
+    collect(true);
+    rfMode = WAKE_NO_RFCAL;
+  }
+  else
+  {
+    collect(false);
+    publish();
+    rfMode = WAKE_RFCAL;
+  }
 
   unsigned long sleepLength = sample_period - (micros() - startTime);
   Serial.printf("Sleep for %d microseconds\n\n", sleepLength / 1000);
-  ESP.deepSleep(sleepLength);
+  ESP.deepSleep(sleepLength, rfMode);
 }
 
 void loop()
