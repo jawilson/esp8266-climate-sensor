@@ -42,10 +42,9 @@ void RtcUserMemoryManager::initRtcMem() {
   WiFi.macAddress(mac);
 
   management_data_.wifi_boots = 0;
-  management_data_.device_name_length = sizeof(MQTT_USER) + 6;
   sprintf(management_data_.device_name, "%s-%02X%02X%02X",
           MQTT_USER, mac[3], mac[4], mac[5]);
-  management_data_.mqtt_namespace_length = management_data_.device_name_length;
+  management_data_.mqtt_namespace_length = strlen(management_data_.device_name);
   strcpy(management_data_.mqtt_namespace, management_data_.device_name);
   management_data_.sample_data_count = 0;
 
@@ -56,11 +55,11 @@ void RtcUserMemoryManager::initRtcMem() {
 void RtcUserMemoryManager::printRtcMem() {
   Serial.println("---RTC Memory Info---");
   Serial.printf("Size: %d\n", sizeof(management_data_));
-  Serial.printf("       device_name_length: %d\n", management_data_.device_name_length);
   Serial.printf("              device_name: %s\n", management_data_.device_name);
   Serial.printf("    mqtt_namespace_length: %d\n", management_data_.mqtt_namespace_length);
   Serial.printf("           mqtt_namespace: %s\n", management_data_.mqtt_namespace);
   Serial.printf("        sample_data_count: %d\n", management_data_.sample_data_count);
+  Serial.printf("               wifi_boots: %d\n", management_data_.wifi_boots);
 }
 
 void RtcUserMemoryManager::writeRtcMem() {
@@ -71,7 +70,7 @@ RtcUserMemoryManager::Action RtcUserMemoryManager::getAction() {
   if (management_data_.sample_data_count == SAMPLES_TO_AVG - 1) {
     return PUBLISH;
   } else {
-    return COLLECT;
+    return STORE;
   }
 }
 
@@ -100,13 +99,16 @@ RFMode RtcUserMemoryManager::getSleepMode() {
 }
 
 const char* RtcUserMemoryManager::getMqttClientId() {
-  if (mqtt_client_id_ == NULL) {
-    const unsigned long id = micros() & 0xff;
-    mqtt_client_id_ = new char[management_data_.device_name_length + 3 + 1];
-    sprintf(mqtt_client_id_, "%s-%02X", management_data_.device_name, id);
+  return management_data_.device_name;
+}
+
+const char* RtcUserMemoryManager::getMqttWillTopic() {
+  if (mqtt_will_topic_ == NULL) {
+    mqtt_will_topic_ = new char[management_data_.mqtt_namespace_length + 1 + 3 + 1];
+    sprintf(mqtt_will_topic_, "%s/%s", management_data_.mqtt_namespace, "lwt");
   }
 
-  return mqtt_client_id_;
+  return mqtt_will_topic_;
 }
 
 const char* RtcUserMemoryManager::getMqttTemperatureTopic() {

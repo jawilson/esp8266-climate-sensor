@@ -16,7 +16,7 @@ namespace esp8266climatesensor {
     class RtcUserMemoryManager {
      public:
       enum Action {
-        COLLECT = 0,
+        STORE = 0,
         PUBLISH
       };
 
@@ -24,6 +24,7 @@ namespace esp8266climatesensor {
       Action getAction();
       RFMode getSleepMode();
       const char* getMqttClientId();
+      const char* getMqttWillTopic();
       const char* getMqttTemperatureTopic();
       const char* getMqttHumidityTopic();
       size_t getSampleCount();
@@ -33,7 +34,6 @@ namespace esp8266climatesensor {
 
      private:
       struct RtcManagementData {
-        size_t device_name_length;
         char device_name[sizeof(MQTT_USER) + 1 + 6 + 1];
         size_t mqtt_namespace_length;
         char mqtt_namespace[128];
@@ -49,6 +49,7 @@ namespace esp8266climatesensor {
 
       RtcManagementData management_data_;
       char* mqtt_client_id_;
+      char* mqtt_will_topic_;
       char* mqtt_temperature_topic_;
       char* mqtt_humidity_topic_;
     };
