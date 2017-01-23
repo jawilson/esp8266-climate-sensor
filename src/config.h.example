@@ -9,4 +9,6 @@
 #define MQTT_USER "esp8266"
 #define MQTT_PASSWORD "password1234"
 
+#include "defaults.h"
+
 #endif //__esp8266_dht22_mqtt_config_h

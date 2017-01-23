@@ -13,6 +13,10 @@
 #define WIFI_CONNECT_TIMEOUT_MS 5000
 #endif
 
+#ifndef WIFI_RF_CAL_INTERVAL
+#define WIFI_RF_CAL_INTERVAL 8
+#endif
+
 #ifndef MQTT_SERVER_PORT
 #define MQTT_SERVER_PORT 1883
 #endif
