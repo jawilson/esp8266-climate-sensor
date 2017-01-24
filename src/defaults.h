@@ -29,4 +29,8 @@
 #define MQTT_HUMIDITY_TOPIC "humidity"
 #endif
 
+#ifndef MQTT_VCC_TOPIC
+#define MQTT_VCC_TOPIC "vcc"
+#endif
+
 #endif //__esp8266_dht22_mqtt_defaults_h

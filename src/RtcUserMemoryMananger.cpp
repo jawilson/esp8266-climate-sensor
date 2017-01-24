@@ -126,6 +126,15 @@ const char* RtcUserMemoryManager::getMqttHumidityTopic() {
   return mqtt_humidity_topic_;
 }
 
+const char* RtcUserMemoryManager::getMqttVccTopic() {
+  if (mqtt_vcc_topic_ == NULL) {
+    mqtt_vcc_topic_ = new char[management_data_.mqtt_namespace_length + 1 + sizeof(MQTT_VCC_TOPIC) + 1];
+    sprintf(mqtt_vcc_topic_, "%s/%s", management_data_.mqtt_namespace, MQTT_VCC_TOPIC);
+  }
+
+  return mqtt_vcc_topic_;
+}
+
 size_t RtcUserMemoryManager::getSampleCount() {
   return management_data_.sample_data_count;
 }

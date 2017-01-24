@@ -12,6 +12,8 @@ extern "C" {
 #include "RtcUserMemoryManager.h"
 #include "config.h"
 
+ADC_MODE(ADC_VCC);
+
 using namespace esp8266climatesensor;
 using namespace esp8266climatesensor::rtcstorage;
 
@@ -154,11 +156,13 @@ void publish(const SampleData &sample_data) {
     return;
   }
 
-  char reading[6];
+  char reading[7];
   const char* mqtt_temperature_topic =
     RtcUserMemoryManager::getInstance().getMqttTemperatureTopic();
   const char* mqtt_humidity_topic =
     RtcUserMemoryManager::getInstance().getMqttHumidityTopic();
+  const char* mqtt_vcc_topic =
+    RtcUserMemoryManager::getInstance().getMqttVccTopic();
 
   dtostrf(sample_data.humidity, 4, 2, reading);
   Serial.printf("publishing: %s %s\n", mqtt_humidity_topic, reading);
@@ -167,6 +171,11 @@ void publish(const SampleData &sample_data) {
   dtostrf(sample_data.temperature, 4, 2, reading);
   Serial.printf("publishing: %s %s\n", mqtt_temperature_topic, reading);
   mqtt_client.publish(mqtt_temperature_topic, reading, true);
+
+  float vcc = ESP.getVcc() / 1000.0;
+  dtostrf(vcc, 5, 3, reading);
+  Serial.printf("publishing: %s %s\n", mqtt_vcc_topic, reading);
+  mqtt_client.publish(mqtt_vcc_topic, reading, true);
 
   mqtt_client.disconnect();
 }

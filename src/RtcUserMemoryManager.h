@@ -27,6 +27,7 @@ namespace esp8266climatesensor {
       const char* getMqttWillTopic();
       const char* getMqttTemperatureTopic();
       const char* getMqttHumidityTopic();
+      const char* getMqttVccTopic();
       size_t getSampleCount();
       void resetSampleCount();
       void saveSampleData(SampleData &sample_data);
@@ -52,6 +53,7 @@ namespace esp8266climatesensor {
       char* mqtt_will_topic_;
       char* mqtt_temperature_topic_;
       char* mqtt_humidity_topic_;
+      char* mqtt_vcc_topic_;
     };
   } // namespace storage
 } // esp8266climatesensor
