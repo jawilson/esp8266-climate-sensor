@@ -1,5 +1,5 @@
-#ifndef __esp8266_dht22_mqtt_config_h
-#define __esp8266_dht22_mqtt_config_h
+#ifndef ESP8266_CLIMATE_SENSOR_CONFIG_H_
+#define ESP8266_CLIMATE_SENSOR_CONFIG_H_
 
 #define WIFI_SSID "MyWiFiNetwork"
 #define WIFI_PASSWORD "MyWiFiPassword"
@@ -11,4 +11,4 @@
 
 #include "defaults.h"
 
-#endif //__esp8266_dht22_mqtt_config_h
+#endif //ESP8266_CLIMATE_SENSOR_CONFIG_H_
