@@ -128,7 +128,6 @@ SampleData getSampleData() {
   // Read temperature as Celsius (the default)
   sample_data.temperature = dht.readTemperature();
 
-
   if (isnan(sample_data.humidity) || isnan(sample_data.temperature)) {
     Serial.println("Failed to read temperature and humidity from sensor");
     return sample_data;
@@ -175,13 +174,13 @@ void publish(const SampleData &sample_data) {
 void setup() {
   unsigned long startTime = micros();
 
+  // Connect D0 to RST to wake up
+  pinMode(D0, WAKEUP_PULLUP);
+
   dht.begin();
 
   Serial.begin(9600);
   Serial.println("\n");
-
-  // Connect D0 to RST to wake up
-  pinMode(D0, WAKEUP_PULLUP);
 
   SampleData sample_data = getSampleData();
   RtcUserMemoryManager::Action action =

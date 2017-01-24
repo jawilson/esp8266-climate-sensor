@@ -79,13 +79,10 @@ RFMode RtcUserMemoryManager::getSleepMode() {
   if (management_data_.sample_data_count == SAMPLES_TO_AVG - 1) {
     management_data_.wifi_boots++;
     Serial.printf("wifi_boots=%d ", management_data_.wifi_boots);
-    if (management_data_.wifi_boots < WIFI_RF_CAL_INTERVAL)
-    {
+    if (management_data_.wifi_boots < WIFI_RF_CAL_INTERVAL) {
       Serial.println("Wake w/o RF Cal");
       mode = WAKE_NO_RFCAL;
-    }
-    else
-    {
+    } else {
       Serial.println("Wake w/ RF Cal");
       management_data_.wifi_boots = 0;
       mode = WAKE_RFCAL;
